@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="getEmployeeDataFlow" doc:id="d7f65238-bc69-4fdd-a806-c32d2230c680" >
+		<db:select doc:name="Get Employee Data" doc:id="7418fa3e-62de-47c5-b0de-b4ded089133d" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from Employee]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Show all Employee Data" doc:id="49a05f03-897c-4933-a39e-f7fa0a0d5702" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="a54bd5a5-e195-44af-a8e4-b72c27d16f95" type="DB:BAD_SQL_SYNTAX, DB:CONNECTIVITY, DB:QUERY_EXECUTION">
+				<ee:transform doc:name="Error Response" doc:id="87f2dcfc-9802-441e-b612-9c50ad59b456" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"msg": "Error in Query"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="postEmployeeDataFlow" doc:id="906690a9-c849-4ec5-a4e8-e35e17d14580" >
+		<try doc:name="Try" doc:id="f1be8ec7-7805-4206-8448-d0fb2b394fd1" >
+			<db:insert doc:name="Insert into Employee" doc:id="bae7e0e1-70a8-4a09-9e58-9b4f0ec95e70" config-ref="Database_Config">
+			<db:sql><![CDATA[INSERT INTO Employee (E_Id, E_Name, E_Salary) 
+	VALUES 
+	(:id, :name, :salary);]]></db:sql>
+				<db:input-parameters ><![CDATA[#[{
+	id: payload.id,
+	name: payload.name,
+	salary: payload.salary
+}]]]></db:input-parameters>
+		</db:insert>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="b2d6939b-ff93-4988-93a8-595913a76030" >
+					<ee:transform doc:name="Failure Response" doc:id="f2d16482-bef3-485e-aeb2-2d09a0b3f182" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"msg": "Insertion Failure"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Success Response" doc:id="08b08a50-fa5f-4a74-8c32-0bc93000029e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"msg": "Insertion Successful"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
